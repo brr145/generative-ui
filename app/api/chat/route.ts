@@ -1,5 +1,5 @@
 import { anthropic } from "@ai-sdk/anthropic";
-import { streamText, tool, stepCountIs } from "ai";
+import { streamText, tool, stepCountIs, convertToModelMessages } from "ai";
 import {
   imageDescriptionSchema,
   carInfoSchema,
@@ -58,11 +58,12 @@ const SYSTEM_PROMPT = `You are an AI assistant that analyzes content and ALWAYS 
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
+  const modelMessages = await convertToModelMessages(messages);
 
   const result = streamText({
     model: anthropic("claude-sonnet-4-20250514"),
     system: SYSTEM_PROMPT,
-    messages,
+    messages: modelMessages,
     toolChoice: "required",
     stopWhen: stepCountIs(3),
     tools: {
