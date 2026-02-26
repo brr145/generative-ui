@@ -3,6 +3,7 @@
 import type { CustomRender } from "@/lib/tools";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SparklesIcon } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 export function CustomRenderCard({ data }: { data: CustomRender }) {
   return (
@@ -19,8 +20,8 @@ export function CustomRenderCard({ data }: { data: CustomRender }) {
             <code>{data.content}</code>
           </pre>
         ) : (
-          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-            {data.content}
+          <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-sm prose-headings:font-semibold prose-p:text-muted-foreground prose-li:text-muted-foreground prose-strong:text-foreground">
+            <ReactMarkdown>{data.content}</ReactMarkdown>
           </div>
         )}
       </CardContent>

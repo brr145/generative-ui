@@ -22,41 +22,61 @@ export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `You are an AI assistant that analyzes content and ALWAYS responds by calling one or more tools. Never respond with plain text — always use tools to structure your output.
 
+## IMPORTANT: Prefer Visual & Structured Output
+
+Your UI renders beautiful cards, charts, tables, and badges. ALWAYS prefer these visual tools over long text blocks:
+- Instead of writing paragraphs of text → use \`key_points\` to break info into scannable bullet points with importance levels
+- Instead of listing numbers in text → use \`statistics_summary\` cards, \`bar_chart\`, \`pie_chart\`, or \`data_table\`
+- Instead of writing a long explanation → use \`topic_summary\` with relevance scores or \`key_points\` with headings
+- When using \`render_custom\`, keep the markdown SHORT and well-structured (use bullet points, bold, headers). Never write walls of text.
+
+ALWAYS call MULTIPLE tools to create a rich visual response. For example:
+- "Tell me about cheese" → call \`key_points\` (core facts) + \`topic_summary\` (types/categories) + \`render_custom\` (brief fun facts as short markdown)
+- "Analyze this CSV" → call \`statistics_summary\` + \`bar_chart\` or \`pie_chart\` + \`data_table\`
+- "Summarize this PDF" → call \`document_summary\` + \`key_points\`
+
 ## Tool Selection Guide
 
 ### For images:
-- **Car photo** → use \`car_info\` (identify make, model, year, features)
-- **Food/dish photo** → use \`food_recipe\` (identify dish, create recipe)
-- **Artwork/painting** → use \`artwork_info\` (analyze style, medium, techniques)
-- **Any other image** → use \`image_description\` (general description)
+- **Car photo** → use \`car_info\`
+- **Food/dish photo** → use \`food_recipe\`
+- **Artwork/painting** → use \`artwork_info\`
+- **Any other image** → use \`image_description\`
 
 ### For documents (PDF, long text):
-- Use \`document_summary\` for overall summary
-- Use \`key_points\` to extract key takeaways
-- You may call BOTH tools for thorough analysis
+- Use \`document_summary\` + \`key_points\` together
 
 ### For CSV/tabular data:
-- Use \`data_table\` to display the data in a table
-- Use \`statistics_summary\` for statistical analysis (mean, median, min, max, etc.)
-- Use an appropriate chart tool (\`bar_chart\`, \`line_chart\`, or \`pie_chart\`) for visualization
-- You may call MULTIPLE tools — e.g., statistics + chart + table
+- Use \`data_table\` + \`statistics_summary\` + a chart tool (\`bar_chart\`, \`line_chart\`, or \`pie_chart\`)
 
-### For text analysis requests:
-- "Analyze sentiment" → use \`sentiment_analysis\`
-- "Extract entities" → use \`entity_extraction\`
-- "Summarize topics" → use \`topic_summary\`
+### For text analysis:
+- Sentiment → \`sentiment_analysis\`
+- Entities → \`entity_extraction\`
+- Topics → \`topic_summary\`
 
-### Catch-all:
-- If no specific tool fits, use \`render_custom\` with markdown content
+### For general knowledge questions:
+- Combine \`key_points\` + \`topic_summary\` and/or short \`render_custom\` markdown
+- NEVER use \`render_custom\` with content longer than ~150 words. Break into multiple tools instead.
+
+## CRITICAL — How Tools Work:
+These tools are DISPLAY-ONLY. They render UI from the data YOU provide. There is no backend processing.
+YOU must populate ALL fields yourself, including arrays. For example:
+- \`entity_extraction\`: YOU must identify the entities and fill in the \`entities\` array yourself.
+- \`sentiment_analysis\`: YOU must determine the sentiment, score, and fill in the \`breakdown\` array yourself.
+- \`key_points\`: YOU must write the key points and fill in the \`points\` array yourself.
+- \`bar_chart\`: YOU must compute/provide the data values for the \`data\` array yourself.
+Never call a tool with empty arrays — always fill in the data.
 
 ## Rules:
 1. ALWAYS call at least one tool. Never respond with only text.
-2. You may call multiple tools in a single response for richer output.
-3. Fill in all required fields with accurate, detailed information.
-4. For charts, pick the most appropriate chart type for the data.
-5. Be generous with details — users want rich, informative cards.`;
+2. Call MULTIPLE tools (2-4) per response for richer, more visual output.
+3. Keep text content concise — use bullet points, not paragraphs.
+4. For \`render_custom\`, always use markdown format and keep it brief.
+5. Prefer charts + stats + tables over describing numbers in text.
+6. ALWAYS populate every array field with real data — never leave arrays empty.`;
 
 export async function POST(req: Request) {
+  try {
   const { messages } = await req.json();
   const modelMessages = await convertToModelMessages(messages);
 
@@ -70,25 +90,25 @@ export async function POST(req: Request) {
       // ── Image Tools ──
       image_description: tool({
         description:
-          "Describe an image with details about objects, colors, and mood. Use for general images that aren't cars, food, or artwork.",
+          "Render an image description card. YOU must fill in all fields: title, description, objects array, colors array, and mood.",
         inputSchema: imageDescriptionSchema,
         execute: async (input) => input,
       }),
       car_info: tool({
         description:
-          "Identify a car from an image — make, model, year, features, estimated price. Use when the image contains a vehicle.",
+          "Render a car info card. YOU must fill in all fields: make, model, year, color, bodyType, features array, etc.",
         inputSchema: carInfoSchema,
         execute: async (input) => input,
       }),
       food_recipe: tool({
         description:
-          "Identify a dish from a food image and generate a recipe with ingredients and instructions.",
+          "Render a recipe card. YOU must fill in all fields: dishName, cuisine, ingredients array, instructions array, times, servings, difficulty.",
         inputSchema: foodRecipeSchema,
         execute: async (input) => input,
       }),
       artwork_info: tool({
         description:
-          "Analyze artwork or paintings — identify style, medium, techniques, artist if known.",
+          "Render an artwork analysis card. YOU must fill in all fields: title, style, description, colors array, techniques array, mood.",
         inputSchema: artworkInfoSchema,
         execute: async (input) => input,
       }),
@@ -96,13 +116,13 @@ export async function POST(req: Request) {
       // ── Document Tools ──
       document_summary: tool({
         description:
-          "Summarize a document or PDF — title, summary, key topics, word count.",
+          "Render a document summary card. YOU must fill in all fields: title, summary, keyTopics array, documentType.",
         inputSchema: documentSummarySchema,
         execute: async (input) => input,
       }),
       key_points: tool({
         description:
-          "Extract key points from a document with importance levels.",
+          "Render a key points card. YOU must fill in the points array with heading, detail, and importance for each point.",
         inputSchema: keyPointsSchema,
         execute: async (input) => input,
       }),
@@ -110,31 +130,31 @@ export async function POST(req: Request) {
       // ── Data Tools ──
       data_table: tool({
         description:
-          "Display data in a structured table with headers and rows.",
+          "Render a data table. YOU must fill in headers array and rows array (array of string arrays).",
         inputSchema: dataTableSchema,
         execute: async (input) => input,
       }),
       bar_chart: tool({
         description:
-          "Render a bar chart for comparing discrete categories. Best for categorical comparisons.",
+          "Render a bar chart. YOU must fill in the data array with {label, value} objects.",
         inputSchema: barChartSchema,
         execute: async (input) => input,
       }),
       line_chart: tool({
         description:
-          "Render a line chart for showing trends over time or continuous data.",
+          "Render a line chart. YOU must fill in the data array with {label, value} objects.",
         inputSchema: lineChartSchema,
         execute: async (input) => input,
       }),
       pie_chart: tool({
         description:
-          "Render a pie chart for showing proportions or percentage breakdowns.",
+          "Render a pie chart. YOU must fill in the data array with {label, value} objects.",
         inputSchema: pieChartSchema,
         execute: async (input) => input,
       }),
       statistics_summary: tool({
         description:
-          "Display statistical summary (mean, median, min, max, etc.) for numeric data.",
+          "Render a statistics card. YOU must compute the stats and fill in the stats array with {label, value, trend} objects.",
         inputSchema: statisticsSummarySchema,
         execute: async (input) => input,
       }),
@@ -142,19 +162,19 @@ export async function POST(req: Request) {
       // ── Text Analysis Tools ──
       sentiment_analysis: tool({
         description:
-          "Analyze sentiment of text — overall sentiment, score, and aspect-level breakdown.",
+          "Render a sentiment analysis card. YOU must analyze the text and fill in ALL fields: text, overallSentiment, score, and the breakdown array with {aspect, sentiment, text} objects.",
         inputSchema: sentimentAnalysisSchema,
         execute: async (input) => input,
       }),
       entity_extraction: tool({
         description:
-          "Extract named entities (people, organizations, locations, dates, etc.) from text.",
+          "Render an entity extraction card. YOU must identify all entities in the text and fill in the entities array with {name, type, context} objects. Never leave entities empty.",
         inputSchema: entityExtractionSchema,
         execute: async (input) => input,
       }),
       topic_summary: tool({
         description:
-          "Identify and summarize topics in text with relevance scores.",
+          "Render a topic summary card. YOU must identify topics and fill in the topics array with {name, description, relevance} objects, plus overallTheme.",
         inputSchema: topicSummarySchema,
         execute: async (input) => input,
       }),
@@ -162,7 +182,7 @@ export async function POST(req: Request) {
       // ── Catch-all ──
       render_custom: tool({
         description:
-          "Render custom content (markdown, text, or code) when no other tool is a better fit.",
+          "Render a custom content card with markdown. YOU must fill in title, content (as markdown), and format. Keep content under 150 words.",
         inputSchema: customRenderSchema,
         execute: async (input) => input,
       }),
@@ -170,4 +190,28 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse();
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
+    const isRateLimit =
+      message.includes("rate_limit") ||
+      message.includes("budget") ||
+      message.includes("billing") ||
+      message.includes("credit") ||
+      message.includes("429") ||
+      message.includes("insufficient");
+
+    return new Response(
+      JSON.stringify({
+        error: isRateLimit ? "BUDGET_EXCEEDED" : "API_ERROR",
+        message: isRateLimit
+          ? "API budget limit reached"
+          : message,
+      }),
+      {
+        status: isRateLimit ? 429 : 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
 }

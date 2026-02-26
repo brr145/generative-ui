@@ -7,8 +7,8 @@ export const imageDescriptionSchema = z.object({
   description: z
     .string()
     .describe("Detailed description of what the image contains"),
-  objects: z.array(z.string()).describe("Key objects detected in the image"),
-  colors: z.array(z.string()).describe("Dominant colors in the image"),
+  objects: z.array(z.string()).default([]).describe("Key objects detected in the image"),
+  colors: z.array(z.string()).default([]).describe("Dominant colors in the image"),
   mood: z.string().describe("Overall mood or atmosphere of the image"),
 });
 export type ImageDescription = z.infer<typeof imageDescriptionSchema>;
@@ -20,7 +20,7 @@ export const carInfoSchema = z.object({
   color: z.string().describe("Exterior color"),
   bodyType: z.string().describe("Body type (sedan, SUV, coupe, etc.)"),
   estimatedPrice: z.string().optional().describe("Estimated price range"),
-  features: z.array(z.string()).describe("Notable visible features"),
+  features: z.array(z.string()).default([]).describe("Notable visible features"),
   condition: z.string().optional().describe("Apparent condition"),
 });
 export type CarInfo = z.infer<typeof carInfoSchema>;
@@ -36,8 +36,9 @@ export const foodRecipeSchema = z.object({
         amount: z.string(),
       })
     )
+    .default([])
     .describe("List of ingredients with amounts"),
-  instructions: z.array(z.string()).describe("Step-by-step cooking instructions"),
+  instructions: z.array(z.string()).default([]).describe("Step-by-step cooking instructions"),
   prepTime: z.string().describe("Preparation time"),
   cookTime: z.string().describe("Cooking time"),
   servings: z.number().describe("Number of servings"),
@@ -52,9 +53,9 @@ export const artworkInfoSchema = z.object({
   medium: z.string().optional().describe("Medium (oil, watercolor, digital, etc.)"),
   period: z.string().optional().describe("Time period or era"),
   description: z.string().describe("Detailed description of the artwork"),
-  colors: z.array(z.string()).describe("Color palette used"),
+  colors: z.array(z.string()).default([]).describe("Color palette used"),
   mood: z.string().describe("Emotional tone of the artwork"),
-  techniques: z.array(z.string()).describe("Notable artistic techniques"),
+  techniques: z.array(z.string()).default([]).describe("Notable artistic techniques"),
 });
 export type ArtworkInfo = z.infer<typeof artworkInfoSchema>;
 
@@ -65,7 +66,7 @@ export const documentSummarySchema = z.object({
   summary: z.string().describe("Comprehensive summary of the document"),
   wordCount: z.number().optional().describe("Approximate word count"),
   pageCount: z.number().optional().describe("Number of pages"),
-  keyTopics: z.array(z.string()).describe("Main topics covered"),
+  keyTopics: z.array(z.string()).default([]).describe("Main topics covered"),
   documentType: z.string().describe("Type of document (report, article, etc.)"),
 });
 export type DocumentSummary = z.infer<typeof documentSummarySchema>;
@@ -80,6 +81,7 @@ export const keyPointsSchema = z.object({
         importance: z.enum(["high", "medium", "low"]).describe("Importance level"),
       })
     )
+    .default([])
     .describe("List of key points extracted from the document"),
 });
 export type KeyPoints = z.infer<typeof keyPointsSchema>;
@@ -88,8 +90,8 @@ export type KeyPoints = z.infer<typeof keyPointsSchema>;
 
 export const dataTableSchema = z.object({
   title: z.string().describe("Table title"),
-  headers: z.array(z.string()).describe("Column headers"),
-  rows: z.array(z.array(z.string())).describe("Table data rows"),
+  headers: z.array(z.string()).default([]).describe("Column headers"),
+  rows: z.array(z.array(z.string())).default([]).describe("Table data rows"),
   caption: z.string().optional().describe("Table caption or description"),
 });
 export type DataTable = z.infer<typeof dataTableSchema>;
@@ -103,6 +105,7 @@ export const barChartSchema = z.object({
         value: z.number(),
       })
     )
+    .default([])
     .describe("Data points for the bar chart"),
   xAxisLabel: z.string().optional().describe("X-axis label"),
   yAxisLabel: z.string().optional().describe("Y-axis label"),
@@ -118,6 +121,7 @@ export const lineChartSchema = z.object({
         value: z.number(),
       })
     )
+    .default([])
     .describe("Data points for the line chart"),
   xAxisLabel: z.string().optional().describe("X-axis label"),
   yAxisLabel: z.string().optional().describe("Y-axis label"),
@@ -133,6 +137,7 @@ export const pieChartSchema = z.object({
         value: z.number(),
       })
     )
+    .default([])
     .describe("Data slices for the pie chart"),
 });
 export type PieChartData = z.infer<typeof pieChartSchema>;
@@ -151,6 +156,7 @@ export const statisticsSummarySchema = z.object({
           .describe("Trend direction"),
       })
     )
+    .default([])
     .describe("List of statistics"),
   description: z.string().optional().describe("Overall description"),
 });
@@ -172,6 +178,7 @@ export const sentimentAnalysisSchema = z.object({
         text: z.string().describe("Relevant text excerpt"),
       })
     )
+    .default([])
     .describe("Sentiment breakdown by aspect"),
 });
 export type SentimentAnalysis = z.infer<typeof sentimentAnalysisSchema>;
@@ -197,6 +204,7 @@ export const entityExtractionSchema = z.object({
         context: z.string().describe("Context in which the entity appears"),
       })
     )
+    .default([])
     .describe("Extracted entities"),
 });
 export type EntityExtraction = z.infer<typeof entityExtractionSchema>;
@@ -211,6 +219,7 @@ export const topicSummarySchema = z.object({
         relevance: z.number().describe("Relevance score 0-100"),
       })
     )
+    .default([])
     .describe("Identified topics"),
   overallTheme: z.string().describe("Overall theme of the content"),
 });

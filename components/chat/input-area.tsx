@@ -10,9 +10,10 @@ import { SendIcon, PaperclipIcon, Loader2Icon } from "lucide-react";
 type InputAreaProps = {
   onSubmit: (text: string, files: ProcessedFile[]) => void;
   isLoading: boolean;
+  disabled?: boolean;
 };
 
-export function InputArea({ onSubmit, isLoading }: InputAreaProps) {
+export function InputArea({ onSubmit, isLoading, disabled }: InputAreaProps) {
   const [input, setInput] = useState("");
   const [files, setFiles] = useState<ProcessedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +46,10 @@ export function InputArea({ onSubmit, isLoading }: InputAreaProps) {
     },
   });
 
+  const isDisabled = isLoading || !!disabled;
+
   const handleSubmit = () => {
-    if ((!input.trim() && !files.length) || isLoading) return;
+    if ((!input.trim() && !files.length) || isDisabled) return;
     onSubmit(input.trim(), files);
     setInput("");
     setFiles([]);
@@ -55,6 +58,34 @@ export function InputArea({ onSubmit, isLoading }: InputAreaProps) {
       textareaRef.current.style.height = "auto";
     }
   };
+
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      const items = Array.from(e.clipboardData.items);
+      const fileItems = items.filter((item) => item.kind === "file");
+      if (!fileItems.length) return;
+
+      e.preventDefault();
+      setError(null);
+      const processed: ProcessedFile[] = [];
+      for (const item of fileItems) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        try {
+          const result = await processFile(file);
+          processed.push(result);
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to process pasted file"
+          );
+        }
+      }
+      if (processed.length) {
+        setFiles((prev) => [...prev, ...processed]);
+      }
+    },
+    []
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -106,7 +137,7 @@ export function InputArea({ onSubmit, isLoading }: InputAreaProps) {
               size="icon"
               className="h-8 w-8 shrink-0"
               onClick={handleFileClick}
-              disabled={isLoading}
+              disabled={isDisabled}
             >
               <PaperclipIcon className="h-4 w-4" />
             </Button>
@@ -115,7 +146,8 @@ export function InputArea({ onSubmit, isLoading }: InputAreaProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message or drop a file..."
+              onPaste={handlePaste}
+              placeholder="Type a message or paste/drop a file..."
               rows={1}
               className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground min-h-[36px] max-h-[120px] py-2"
               style={{
@@ -127,14 +159,14 @@ export function InputArea({ onSubmit, isLoading }: InputAreaProps) {
                 target.style.height = "auto";
                 target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
               }}
-              disabled={isLoading}
+              disabled={isDisabled}
             />
             <Button
               type="button"
               size="icon"
               className="h-8 w-8 shrink-0"
               onClick={handleSubmit}
-              disabled={isLoading || (!input.trim() && !files.length)}
+              disabled={isDisabled || (!input.trim() && !files.length)}
             >
               {isLoading ? (
                 <Loader2Icon className="h-4 w-4 animate-spin" />

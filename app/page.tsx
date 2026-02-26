@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import type { ProcessedFile } from "@/lib/file-processing";
@@ -8,11 +9,14 @@ import { MessageList } from "@/components/chat/message-list";
 import { MessageBubble } from "@/components/chat/message-bubble";
 import { InputArea } from "@/components/chat/input-area";
 import { CardSkeleton } from "@/components/skeletons/card-skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   CarIcon,
   SmilePlusIcon,
   FileTextIcon,
   BarChart3Icon,
+  AlertCircleIcon,
+  WalletIcon,
 } from "lucide-react";
 
 const EXAMPLES = [
@@ -25,7 +29,7 @@ const EXAMPLES = [
   {
     icon: <CarIcon className="h-4 w-4" />,
     label: "Try with a car image",
-    prompt: null, // Upload-only prompt
+    prompt: null,
   },
   {
     icon: <FileTextIcon className="h-4 w-4" />,
@@ -41,25 +45,84 @@ const EXAMPLES = [
   },
 ];
 
+function BudgetExceededBanner() {
+  return (
+    <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30">
+      <CardContent className="flex items-start gap-3 py-4">
+        <div className="rounded-full bg-amber-100 p-2 dark:bg-amber-900/50">
+          <WalletIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            API Budget Reached
+          </p>
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            The $15 API budget has been fully used. To continue, increase the
+            budget limit on your Anthropic API key or add a new key in{" "}
+            <code className="rounded bg-amber-100 px-1 py-0.5 text-xs dark:bg-amber-900/50">
+              .env.local
+            </code>
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <Card className="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30">
+      <CardContent className="flex items-start gap-3 py-4">
+        <div className="rounded-full bg-red-100 p-2 dark:bg-red-900/50">
+          <AlertCircleIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-red-900 dark:text-red-200">
+            Something went wrong
+          </p>
+          <p className="text-sm text-red-700 dark:text-red-400">{message}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Home() {
-  const { messages, sendMessage, status } = useChat({
+  const [budgetExceeded, setBudgetExceeded] = useState(false);
+
+  const { messages, sendMessage, status, error, clearError } = useChat({
     experimental_throttle: 50,
+    onError: (err) => {
+      // Parse the error to detect budget/rate limit issues
+      const msg = err.message || "";
+      if (
+        msg.includes("BUDGET_EXCEEDED") ||
+        msg.includes("budget") ||
+        msg.includes("rate_limit") ||
+        msg.includes("429") ||
+        msg.includes("billing") ||
+        msg.includes("credit") ||
+        msg.includes("insufficient")
+      ) {
+        setBudgetExceeded(true);
+      }
+    },
   });
 
   const isLoading = status === "streaming" || status === "submitted";
 
   const handleSubmit = async (text: string, files: ProcessedFile[]) => {
+    if (budgetExceeded) return;
+
     const parts: Array<
       | { type: "text"; text: string }
       | { type: "file"; mediaType: string; url: string; filename?: string }
     > = [];
 
-    // Add text if present
     if (text) {
       parts.push({ type: "text", text });
     }
 
-    // Add files
     for (const file of files) {
       if (file.type.startsWith("image/") && file.dataUrl) {
         parts.push({
@@ -76,7 +139,6 @@ export default function Home() {
           filename: file.name,
         });
       } else if (file.textContent) {
-        // For CSV/text/JSON — send as text with filename context
         parts.push({
           type: "text",
           text: `[File: ${file.name}]\n${file.textContent}`,
@@ -86,15 +148,20 @@ export default function Home() {
 
     if (!parts.length) return;
 
-    // If only text (no files), use simple text form
+    // Clear any previous non-budget errors
+    if (error && !budgetExceeded) clearError();
+
     if (parts.length === 1 && parts[0].type === "text") {
       await sendMessage({ text: parts[0].text });
     } else {
-      await sendMessage({ parts } as unknown as Parameters<typeof sendMessage>[0]);
+      await sendMessage({
+        parts,
+      } as unknown as Parameters<typeof sendMessage>[0]);
     }
   };
 
   const isEmpty = messages.length === 0;
+  const showGenericError = error && !budgetExceeded;
 
   return (
     <ChatContainer>
@@ -119,7 +186,7 @@ export default function Home() {
                       sendMessage({ text: example.prompt });
                     }
                   }}
-                  disabled={!example.prompt || isLoading}
+                  disabled={!example.prompt || isLoading || budgetExceeded}
                   className="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted disabled:opacity-50"
                 >
                   <span className="text-muted-foreground">{example.icon}</span>
@@ -140,8 +207,14 @@ export default function Home() {
               )}
           </>
         )}
+        {budgetExceeded && <BudgetExceededBanner />}
+        {showGenericError && <ErrorBanner message={error.message} />}
       </MessageList>
-      <InputArea onSubmit={handleSubmit} isLoading={isLoading} />
+      <InputArea
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+        disabled={budgetExceeded}
+      />
     </ChatContainer>
   );
 }

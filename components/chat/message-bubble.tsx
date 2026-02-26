@@ -1,6 +1,7 @@
 "use client";
 
 import type { UIMessage } from "ai";
+import { FileTextIcon, FileSpreadsheetIcon } from "lucide-react";
 import { CardSkeleton } from "@/components/skeletons/card-skeleton";
 import { ChartSkeleton } from "@/components/skeletons/chart-skeleton";
 import { TableSkeleton } from "@/components/skeletons/table-skeleton";
@@ -94,27 +95,41 @@ export function MessageBubble({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
 
   if (isUser) {
-    // Extract text from user message parts
-    const textParts = message.parts
+    const allTextParts = message.parts
       .filter((p) => p.type === "text")
-      .map((p) => (p as { type: "text"; text: string }).text)
-      .join("\n");
+      .map((p) => (p as { type: "text"; text: string }).text);
 
+    // Separate file-content text parts (prefixed with [File: ...]) from real user text
+    const FILE_PREFIX = /^\[File: (.+?)\]\n/;
+    const fileTextParts: { name: string }[] = [];
+    const userTextParts: string[] = [];
+
+    for (const text of allTextParts) {
+      const match = text.match(FILE_PREFIX);
+      if (match) {
+        fileTextParts.push({ name: match[1] });
+      } else {
+        userTextParts.push(text);
+      }
+    }
+
+    const userText = userTextParts.join("\n");
     const fileParts = message.parts.filter((p) => p.type === "file");
 
-    if (!textParts && !fileParts.length) return null;
+    const hasFiles = fileParts.length > 0 || fileTextParts.length > 0;
+    if (!userText && !hasFiles) return null;
 
     return (
       <div className="flex justify-end">
         <div className="max-w-[80%] space-y-2">
-          {fileParts.length > 0 && (
-            <div className="flex justify-end gap-1">
+          {hasFiles && (
+            <div className="flex flex-wrap justify-end gap-1.5">
               {fileParts.map((file, i) => {
                 const f = file as { type: "file"; mediaType: string; url: string; filename?: string };
                 if (f.mediaType.startsWith("image/")) {
                   return (
                     <img
-                      key={i}
+                      key={`file-${i}`}
                       src={f.url}
                       alt={f.filename || "uploaded image"}
                       className="h-16 w-16 rounded-lg object-cover"
@@ -123,18 +138,35 @@ export function MessageBubble({ message }: { message: UIMessage }) {
                 }
                 return (
                   <span
-                    key={i}
-                    className="rounded-lg bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+                    key={`file-${i}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-muted-foreground"
                   >
+                    <FileTextIcon className="h-3.5 w-3.5" />
                     {f.filename || f.mediaType}
+                  </span>
+                );
+              })}
+              {fileTextParts.map((f, i) => {
+                const isCsv = f.name.endsWith(".csv");
+                return (
+                  <span
+                    key={`textfile-${i}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1.5 text-xs text-muted-foreground"
+                  >
+                    {isCsv ? (
+                      <FileSpreadsheetIcon className="h-3.5 w-3.5" />
+                    ) : (
+                      <FileTextIcon className="h-3.5 w-3.5" />
+                    )}
+                    {f.name}
                   </span>
                 );
               })}
             </div>
           )}
-          {textParts && (
+          {userText && (
             <div className="rounded-2xl bg-primary px-4 py-2.5 text-primary-foreground">
-              <p className="text-sm whitespace-pre-wrap">{textParts}</p>
+              <p className="text-sm whitespace-pre-wrap">{userText}</p>
             </div>
           )}
         </div>
